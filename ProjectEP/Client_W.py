@@ -1,4 +1,16 @@
 ###############################
+#######  INFORMATION  #########
+###############################
+## Authors:                  ##
+## Eden Podoksik             ##
+## Platform: Windows 7 64bit ##
+## Version: Python 2.7       ##
+## ------------------------- ##
+## Python communication      ##
+## Client                    ##
+###############################
+
+###############################
 #########  IMPORTS  ###########
 ###############################
 import sys
@@ -11,7 +23,6 @@ import win32gui
 import time
 from PIL import ImageGrab
 import os
-
 ###############################
 ########  VARIABLES  ##########
 ###############################
@@ -37,7 +48,7 @@ class Client(object):
 
     #------------------------------------------------------------------------------------------------------------------
 
-    def CheckifProcess(self, procname):
+    def CheckifProcess(self, procname):                                     #Check if process running and not minimized
         ifopen =False
         iffront=False
         IOIF={"if open":False, "if front":False}
@@ -99,16 +110,18 @@ class Client(object):
         time.sleep(2)
         if(os.path.isdir(server_path)==False):
             os.makedirs(server_path)
-        self.client.send(server_path)
         f = open(path,'rb')
         print 'Sending...'
-        part = f.read(1024)
         time.sleep(1)
+        part = f.read(1024)
         while (part):
             self.client.send(part)
+            time.sleep(0.1)
             part = f.read(1024)
         f.close()
-        print picname,"sent"
+        mass=self.client.recv(1024)
+        if mass=="image_sent":
+            print picname,"sent"
 
     #----------------------------------------------------------- -------------------------------------------------------
     def send(self, t):

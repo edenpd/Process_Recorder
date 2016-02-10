@@ -1,4 +1,16 @@
 ###############################
+#######  INFORMATION  #########
+###############################
+## Authors:                  ##
+## Eden Podoksik             ##
+## Platform: Windows 7 64bit ##
+## Version: Python 2.7       ##
+## ------------------------- ##
+## Python communication      ##
+## Server                    ##
+###############################
+
+###############################
 #########  IMPORTS  ###########
 ###############################
 import sys
@@ -53,9 +65,12 @@ class Client(threading.Thread):
             while (part):
                 f.write(part)
                 part = self.socket.recv(1024)
+                time.sleep(0.1)
+                print "+"
+            break
             f.close()
             print "Done Receiving, image sent"
-        print "hello+1=1=1"
+        self.socket.send("image_sent")
     #------------------------------------------------------------------------------------------------------------------
 
     def run(self):
@@ -65,7 +80,7 @@ class Client(threading.Thread):
                 try:
                     time.sleep(2)
                     con=self.socket.recv(1024)
-                    print"==================================================="
+
                     time.sleep(2)
                     if con=="finish":
                         Photosnumber=self.socket.recv(1024)
