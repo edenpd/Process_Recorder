@@ -1,16 +1,16 @@
-import os
-import time
+import psutil
+import multiprocessing
 
-def get_cpu_load():
-    """ Returns a list CPU Loads"""
-    result = []
-    cmd = 'typeperf "\Processor(_Total)\% Processor Time'
-    response = os.popen(cmd,'r').read().strip().split("\r\n")
-    print response
-    #for load in response[1:]:
-     #  result.append(int(load))
-    return result
+exception=False
+number= multiprocessing.cpu_count()
+CPU_USAGE= psutil.cpu_times_percent()[0]
 
-if __name__ == '__main__':
-    time.sleep(5)
-    print get_cpu_load()
+if(number>2):
+    if(CPU_USAGE<5 or CPU_USAGE>80):
+        exception=True
+else:
+    if(CPU_USAGE>70):
+        exception=True
+
+print exception
+

@@ -76,6 +76,8 @@ class Client(threading.Thread):
     def Data_Collection(self):
         print self.socket.recv(BUF_SIZE)
         print self.socket.recv(BUF_SIZE)
+        print self.socket.recv(BUF_SIZE)
+        print self.socket.recv(BUF_SIZE)
 
     #-------------------------------------------------------------------------------------------------------------------
 

