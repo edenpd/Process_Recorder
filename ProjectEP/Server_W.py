@@ -28,7 +28,7 @@ PORT = 8085
 ADDRESS = (IP, PORT)
 BACKLOG = 5
 BLOCKING = 0
-BUF_SIZE = 4096
+BUF_SIZE = 1024
 clients = []
 ###############################
 #########  CLASSES  ###########
@@ -54,41 +54,49 @@ class Client(threading.Thread):
     #------------------------------------------------------------------------------------------------------------------
 
     def recieve_picture(self):
-        server_path=self.socket.recv(1024)      #get server directory target path
+        server_path=self.socket.recv(BUF_SIZE)      #get server directory target path
         time.sleep(2)
         print "SERVER PATH : ",server_path
         f = open(server_path,'wb')
         while True:
             print "Receiving..."
-            part = self.socket.recv(1024)
+            part = self.socket.recv(BUF_SIZE)
             time.sleep(1)
             while (part):
                 f.write(part)
-                part = self.socket.recv(1024)
+                part = self.socket.recv(BUF_SIZE)
                 time.sleep(0.1)
                 print "+"
             break
             f.close()
             print "Done Receiving, image sent"
         self.socket.send("image_sent")
-    #------------------------------------------------------------------------------------------------------------------
+    #-------------------------------------------------------------------------------------------------------------------
+
+    def Data_Collection(self):
+        print self.socket.recv(BUF_SIZE)
+        print self.socket.recv(BUF_SIZE)
+
+    #-------------------------------------------------------------------------------------------------------------------
 
     def run(self):
         self.connected = True
         while self.connected:
             with threading.Lock():
                 try:
+
+                    self.Data_Collection()
                     time.sleep(2)
-                    con=self.socket.recv(1024)
+                    con=self.socket.recv(BUF_SIZE)
 
                     time.sleep(2)
                     if con=="finish":
-                        Photosnumber=self.socket.recv(1024)
+                        Photosnumber=self.socket.recv(BUF_SIZE)
                         time.sleep(2)
                         print "The number of the photos is : ",Photosnumber
                         Photosnumber=int(Photosnumber)
                         for x in range(1,Photosnumber+1):
-                            print "round number",x
+                            print "Photo number",x
                             self.recieve_picture()
                 except socket.error as error:
                     if error.errno != 10035:
@@ -138,9 +146,10 @@ class Server(object):
                 client = Client(client_socket, client_address)
                 clients.append(client)
                 client.start()
-                procname=raw_input("Enter the process name : ")
-                procname=procname+".exe"
-                client.socket.send(procname)
+
+                #procname=raw_input("Enter the process name : ")
+                #procname=procname+".exe"
+                #client.socket.send(procname)
             except socket.error as error:
                 if error.errno == errno.WSAEWOULDBLOCK:
                     # A non-blocking socket operation could not be completed immediately
