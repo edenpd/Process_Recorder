@@ -147,38 +147,49 @@ class Client(object):
         for i in titles:
             if "YouTube" in i:
                 found=True
-        if found==True:
-            self.client.send("User using youtube")
-        else:self.client.send("User not using youtube")
+        return found
 
 
     #-------------------------------------------------------------------------------------------------------------------
 
-    def Check_Exceptions(self):
-        self.Check_Media("chrome.exe")
-        self.Check_Media("wmplayer.exe")
+    def Check_Exceptions(self, checkingtime):
+        currenttime=time.time()
+        currenttime+=checkingtime
+        FoundChrome=False
+        FoundWmplayer=False
+        CPUexception=False
+        FoundYoutube=False
+        while(time.time()<=currenttime and FoundChrome==False and FoundWmplayer==False and CPUexception==False and FoundYoutube==False ):
+            FoundChrome=self.Check_Media("chrome.exe")
+            FoundWmplayer=self.Check_Media("wmplayer.exe")
 
-        exception=False
-        NumberOfCores= multiprocessing.cpu_count()
-        CPU_USAGE= psutil.cpu_times_percent()[0]
-        if(NumberOfCores>2):
-            if(CPU_USAGE<5 or CPU_USAGE>80):
-                exception=True
-        else:
-            if(CPU_USAGE>70):
-                exception=True
-        if exception==False:
-            self.client.send("There is no exception in the CPU")
-        else: self.client.send("There is exception in the CPU")
-        self.WindowTitles()
+            NumberOfCores= multiprocessing.cpu_count()
+            CPU_USAGE= psutil.cpu_times_percent()[0]
+            if(NumberOfCores>2):
+                if(CPU_USAGE<5 or CPU_USAGE>80):
+                    CPUexception=True
+            else:
+                if(CPU_USAGE>70):
+                    CPUexception=True
+            FoundYoutube=self.WindowTitles()
+
+        self.client.send(str(FoundChrome))
+        time.sleep(0.5)
+        self.client.send(str(FoundWmplayer))
+        time.sleep(0.5)
+        self.client.send(str(CPUexception))
+        time.sleep(0.5)
+        self.client.send(str(FoundYoutube))
+
+
 
     #-------------------------------------------------------------------------------------------------------------------
 
     def Check_Media(self, proc):
         check=self.CheckifProcess(proc)
         if check["if open"]==True:
-            self.client.send("Client use "+proc)
-        else: self.client.send("Client don't use "+proc)
+            return True
+        else : return False
 
     #-------------------------------------------------------------------------------------------------------------------
     def send(self, t):
@@ -192,7 +203,8 @@ class Client(object):
         self.running = True
         while self.running:
             try:
-                self.Check_Exceptions()
+                checkingtime = self.client.recv(BUFFER)
+                self.Check_Exceptions(int(checkingtime))
 
                 data = self.client.recv(BUFFER)
                 print data
