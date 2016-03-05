@@ -152,36 +152,51 @@ class Client(object):
 
     #-------------------------------------------------------------------------------------------------------------------
 
-    def Check_Exceptions(self, checkingtime):
+    def Check_Exceptions(self):
+        checkingtime = self.client.recv(BUFFER)
+        time.sleep(0.1)
+        Exceptions = self.client.recv(BUFFER)
+        Exceptions=Exceptions.split("#")
         currenttime=time.time()
-        currenttime+=checkingtime
-        FoundChrome=False
+        currenttime+=int(checkingtime)
+        FoundProcess=False
         FoundWmplayer=False
         CPUexception=False
         FoundYoutube=False
-        while(time.time()<=currenttime and FoundChrome==False and FoundWmplayer==False and CPUexception==False and FoundYoutube==False ):
-            FoundChrome=self.Check_Media("chrome.exe")
-            FoundWmplayer=self.Check_Media("wmplayer.exe")
+        FoundExcpretions=""
 
-            NumberOfCores= multiprocessing.cpu_count()
-            CPU_USAGE= psutil.cpu_times_percent()[0]
-            if(NumberOfCores>2):
-                if(CPU_USAGE<5 or CPU_USAGE>80):
-                    CPUexception=True
-            else:
-                if(CPU_USAGE>70):
-                    CPUexception=True
-            FoundYoutube=self.WindowTitles()
-
-        self.client.send(str(FoundChrome))
-        time.sleep(0.5)
-        self.client.send(str(FoundWmplayer))
-        time.sleep(0.5)
-        self.client.send(str(CPUexception))
-        time.sleep(0.5)
-        self.client.send(str(FoundYoutube))
+        while(time.time()<=currenttime and FoundProcess==False and FoundWmplayer==False and CPUexception==False and FoundYoutube==False ):
+            if Exceptions[0]=="True":
+                FoundWmplayer=self.Check_Media("wmplayer.exe")
 
 
+            if Exceptions[1]=="True":
+                FoundYoutube=self.WindowTitles()
+
+            if Exceptions[2]=="True":
+                NumberOfCores= multiprocessing.cpu_count()
+                CPU_USAGE= psutil.cpu_times_percent()[0]
+                if(NumberOfCores>2):
+                    if(CPU_USAGE<5 or CPU_USAGE>80):
+                        CPUexception=True
+                else:
+                    if(CPU_USAGE>70):
+                        CPUexception=True
+
+            if Exceptions[3]=="True":
+                proc_name=Exceptions[4]
+                FoundProcess=self.Check_Media(proc_name+".exe")
+
+        if Exceptions[0]=="True":
+            FoundExcpretions+="wmp_"+str(FoundWmplayer)+"#"
+        if Exceptions[1]=="True":
+            FoundExcpretions+="youtube_"+str(FoundYoutube)+"#"
+        if Exceptions[2]=="True":
+            FoundExcpretions+="cpu_"+str(CPUexception)+"#"
+        if Exceptions[3]=="True":
+            FoundExcpretions+="process_"+str(FoundProcess)+"#"
+
+        self.client.send(FoundExcpretions)
 
     #-------------------------------------------------------------------------------------------------------------------
 
@@ -203,8 +218,8 @@ class Client(object):
         self.running = True
         while self.running:
             try:
-                checkingtime = self.client.recv(BUFFER)
-                self.Check_Exceptions(int(checkingtime))
+
+                self.Check_Exceptions()
 
                 data = self.client.recv(BUFFER)
                 print data
