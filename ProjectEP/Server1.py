@@ -20,11 +20,16 @@ import threading
 import os
 import struct
 import time
+import pickle, zlib
+from PIL import  Image
+
 ###############################
 ########  VARIABLES  ##########
 ###############################
 IP = "0.0.0.0"
 PORT = 8085
+Broadcast_PORT = 8084
+Broadcast_IP ="255.255.255.255"
 ADDRESS = (IP, PORT)
 BACKLOG = 5
 BLOCKING = 1
@@ -34,6 +39,19 @@ guisocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ###############################
 #########  CLASSES  ###########
 ###############################
+class Broadcast(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.broadsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.broadsocket.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
+
+
+    def run(self):
+        while True:
+            self.broadsocket.sendto("Connect to me", (Broadcast_IP, Broadcast_PORT))
+
+
+
 class Client(threading.Thread):
     def __init__(self, socket, address):
         threading.Thread.__init__(self)
@@ -44,7 +62,6 @@ class Client(threading.Thread):
         self.address = address
 
     #------------------------------------------------------------------------------------------------------------------
-
 
     def shutdown(self):
         self.connected = False
@@ -57,33 +74,41 @@ class Client(threading.Thread):
     #------------------------------------------------------------------------------------------------------------------
 
     def recieve_picture(self):
-        server_path=self.socket.recv(BUF_SIZE)      #get server directory target path
-        time.sleep(2)
-        print "SERVER PATH : ",server_path
-        guisocket.send(server_path)
-        f = open(server_path,'wb')
-        while True:
-            print "Receiving..."
-            part = self.socket.recv(BUF_SIZE)
-            time.sleep(1)
-            while (part):
-                f.write(part)
-                part = self.socket.recv(BUF_SIZE)
-                time.sleep(0.1)
-            break
-            f.close()
-            print "Done Receiving, image sent"
-        self.socket.send("image_sent")
+        len_image=self.socket.recv(BUF_SIZE)
+        size = int(len_image)
+        self.socket.send("ack")
+        buffer_data = ""
+        len_part = 0
+        while len_part < size:
+            pic = self.socket.recv(2048)
+            if len(pic) == 2048:
+                len_part += 2048
+            else:
+                len_part += len(pic)
+            buffer_data += pic
+
+        print "got the picture!"
+        self.socket.send("ack")
+
+        compressed = pickle.loads(buffer_data)
+        picture = zlib.decompress(compressed)
+        picture = eval(picture)
+        im = Image.fromstring(picture['mode'], picture['size'], picture['pixels'])
+        picname=self.socket.recv(BUF_SIZE)
+        server_path= os.path.dirname(os.path.abspath(__file__))
+        server_path+="\SERVER_PICS"+"\{0}".format(picname)
+        print "This is the path: ",server_path
+        im.save(server_path)
         guisocket.send("image_sent#"+server_path)
     #-------------------------------------------------------------------------------------------------------------------
 
     def Data_Collection(self):
-        detiles=guisocket.recv(BUF_SIZE)
-        detiles=detiles.split("$")
-        IP=detiles[0]
-        Port=detiles[1]
-        Exceptions=detiles[2]
-        Time=detiles[3]*60
+        detailes=guisocket.recv(BUF_SIZE)
+        detailes=detailes.split("$")
+        IP=detailes[0]
+        Port=detailes[1]
+        Exceptions=detailes[2]
+        Time=detailes[3]*60
 
         self.socket.send(Time)
         time.sleep(0.1)
@@ -110,19 +135,10 @@ class Client(threading.Thread):
                 try:
                     self.Data_Collection()
 
-                    procname=guisocket.recv(BUF_SIZE)
-                    procname=procname+".exe"
-                    self.socket.send(procname)
-                    time.sleep(2)
-                    con=self.socket.recv(BUF_SIZE)
-                    if con=="finish":
-                        #Photosnumber=self.socket.recv(BUF_SIZE)
-                        #time.sleep(2)
-                        #print "The number of the photos is : ",Photosnumber
-                        #Photosnumber=int(Photosnumber)
-                        #for x in range(1,Photosnumber+1):
-                        #    print "Photo number",x
-                        self.recieve_picture()
+                    data=guisocket.recv(BUF_SIZE)
+                    data+=".exe"
+                    self.socket.send(data)
+                    self.recieve_picture()
                 except socket.error as error:
                     if error.errno != 10035:
                         print "Error", error.errno
@@ -162,8 +178,9 @@ class Server(object):
     #------------------------------------------------------------------------------------------------------------------
 
     def run(self):
+        Broadcast_Thread=Broadcast()
+        Broadcast_Thread.start()
         self.running = True
-
         guisocket.connect(("127.0.0.1",1234))
         while self.running:
             try:
@@ -175,9 +192,6 @@ class Server(object):
                 client = Client(client_socket, client_address)
                 clients.append(client)
                 client.start()
-
-                #checkingtime=input("Enter the checking time (in minutes) : ")
-                #client.socket.send(str(checkingtime*60))
             except socket.error as error:
                 if error.errno == errno.WSAEWOULDBLOCK:
                     # A non-blocking socket operation could not be completed immediately

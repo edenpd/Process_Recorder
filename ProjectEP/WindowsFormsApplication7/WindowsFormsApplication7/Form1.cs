@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace WindowsFormsApplication7
 {
@@ -18,7 +19,9 @@ namespace WindowsFormsApplication7
 
         public Form1()
         {
+            
             InitializeComponent();
+            Clean();
             ThreadStart tstart=new ThreadStart(Thread_Function);
             Thread tserver = new Thread(tstart);
             tserver.IsBackground = true;
@@ -40,9 +43,10 @@ namespace WindowsFormsApplication7
         private void ClientList()
         {
             string Recieved_Massage = Recieve_Function();
+
             if (Recieved_Massage.Contains("disconnected"))
             {
-                string[] arr=Recieved_Massage.Split('$');
+                string[] arr = Recieved_Massage.Split('$');
                 string[] arr2 = arr[1].Split('#');
                 string IP = arr2[0];
                 string Port = arr2[1];
@@ -52,16 +56,20 @@ namespace WindowsFormsApplication7
                         listView1.Items.Remove(item);
                 }
             }
-            else
+            else if (Recieved_Massage.Contains("Connected"))
             {
                 string[] arr = Recieved_Massage.Split('#');
-                string IP = arr[0];
-                string Port = arr[1];
+                string IP = arr[1];
+                string Port = arr[2];
                 ListViewItem item = new ListViewItem("1");
                 item.SubItems.Add(IP);
                 item.SubItems.Add(Port);
                 listView1.Items.Add(item);
             }
+            else if (Recieved_Massage.Contains("image_sent"))
+                View_Image(Recieved_Massage);
+            else
+                Print_Exceptions(Recieved_Massage);
             
         }
         private string Recieve_Function()
@@ -90,8 +98,6 @@ namespace WindowsFormsApplication7
             string process_name="";
             string a = "";
 
-            while (!Check_Selected_Line())
-            { }
             string IP=listView1.SelectedItems[0].SubItems[1].Text;
             string port = listView1.SelectedItems[0].SubItems[2].Text;
 
@@ -119,12 +125,71 @@ namespace WindowsFormsApplication7
             }
             string message = IP + "$" + port+"$"+a+"$"+textBox2.Text;
             Send_Function(message);
-
-            string Recieved_Massage = Recieve_Function();
-            richTextBox1.Text += Recieved_Massage;
-
         }
 
+        private void Print_Exceptions(string Recieved_Massage)
+        {
+            
+            label4.Text = "Check finished ! ";
+            int ExcCounter = 0;
+            progressBar1.Maximum=int.Parse(textBox2.Text);
+            string[] arr = Recieved_Massage.Split('$');
+            string[] arr1;
+            for (int i = 0; i < arr.Length-1; i++)
+            {
+                arr1= arr[i].Split('_');
+                if (arr[i].Contains("wmp"))
+                {
+                    if (arr[i].Contains("True"))
+                    {
+                        ExcCounter++;
+                        WMP_Label.Text += ("Windows Media Player");
+                    }
+                    else
+                        WMP_Label.Text += ("User doesn't use Windows Media Player");
+                }
+                if (arr[i].Contains("youtube"))
+                {
+                    if (arr[i].Contains("True"))
+                    {
+                        ExcCounter++;
+                        YouTube_Label.Text += ("YouTube");
+                    }
+                    else
+                        YouTube_Label.Text += ("User doesn't use youtube");
+                }
+                if (arr[i].Contains("cpu"))
+                {
+                    if (arr[i].Contains("True"))
+                    {
+                        ExcCounter++;
+                        CPU_Label.Text += ("CPU");
+                    }
+                    else
+                        CPU_Label.Text += ("There is not an exception in the CPU");
+                }
+                if (arr[i].Contains("process"))
+                {
+                    if (arr[i].Contains("True"))
+                    {
+                        ExcCounter++;
+                        Process_Label.Text += (textBox1.Text);
+                    }
+                    else
+                        Process_Label.Text += ("User doesn't use  " + textBox1.Text);
+                }
+
+            }
+            Exception_Label.Text += ("\r\n" + "There is " + ExcCounter + " exceptions from " + (arr.Length - 1) + "\r\n" + "\r\n" + "Enter process name and " + "\r\n" + "press the Print Screen button");
+        }
+        private void View_Image(string  message)
+        {   
+            
+            string[] arr = message.Split('#');
+            string Path = arr[1];
+            pictureBox1.Image = new Bitmap(Path);
+            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+        }
         private RichTextBox str(bool p)
         {
             throw new NotImplementedException();
@@ -161,11 +226,26 @@ namespace WindowsFormsApplication7
 
         private void button1_Click(object sender, EventArgs e)
         {
-            int time = Int32.Parse(textBox2.Text);
-            time = time * 600;
-            timer1.Interval=time;
-            this.timer1.Start();
-            Check_Exceptions();
+            if (!Check_Selected_Line())
+                System_Label.Text += "You must select client from the list\r\n";
+            else
+            {
+                progressBar1.ForeColor = Color.Black;
+                label4.Text = "Checking exceptions...";
+                int time = Int32.Parse(textBox2.Text);
+                Regex x = new Regex(@"^(0-9)*$");
+                x.IsMatch(////////////////////////////////////////////////////////////////////////////////////
+                if (time>0&&
+                time = time * 600;
+                timer1.Interval = time;
+                this.timer1.Start();
+
+                ThreadStart tstart = new ThreadStart(Check_Exceptions);
+                Thread tserver = new Thread(tstart);
+                tserver.IsBackground = true;
+                tserver.Start();
+            }
+
         }
 
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
@@ -184,6 +264,60 @@ namespace WindowsFormsApplication7
         }
 
         private void groupBox3_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void richTextBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+           System_Label.Text+="This is not legal";
+           Send_Function(textBox3.Text);              
+        }
+
+        private void label6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+        
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Clean();
+        }
+        private void Clean()
+        {
+            Exception_Label.Text = "";
+            WMP_Label.Text = "";
+            YouTube_Label.Text = "";
+            CPU_Label.Text = "";
+            Process_Label.Text = "";
+            label4.Text = "";
+            System_Label.Text = "";
+            checkBox1.Checked = false;
+            checkBox2.Checked = false;
+            checkBox3.Checked = false;
+            checkBox4.Checked = false;
+        }
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void pictureBox2_Click(object sender, EventArgs e)
         {
 
         }

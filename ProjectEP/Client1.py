@@ -26,25 +26,39 @@ import os
 import psutil
 import multiprocessing
 import ctypes
+import pickle, zlib
+
 ###############################
 ########  VARIABLES  ##########
 ###############################
 IP = "127.0.0.1"
 PORT = 8085
-ADDRESS = (IP, PORT)
 BLOCKING = 0
-BUFFER = 4096
+BUF_SIZE = 1024
+Broadcast_PORT = 8084
+Broadcast_IP ="0.0.0.0"
 ###############################
 #########  CLASSES  ###########
 ###############################
 class Client(object):
     def __init__(self):
+        SERVER_IP=self.Broadcast_Listening()
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.connect(ADDRESS)
+        self.client.connect((SERVER_IP,PORT))
         #self.client.setblocking(BLOCKING)
 
     #------------------------------------------------------------------------------------------------------------------
 
+    def Broadcast_Listening(self):
+        Broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        Broadcast_socket.bind((Broadcast_IP, Broadcast_PORT))
+        details=Broadcast_socket.recvfrom(BUF_SIZE)
+        while("Connect to me" != details[0]):
+            details=Broadcast_socket.recvfrom(BUF_SIZE)
+        IP=details[1][0]
+        return  IP
+
+    #------------------------------------------------------------------------------------------------------------------
 
     def shutdown(self):        
         self.client.close()
@@ -89,42 +103,29 @@ class Client(object):
     #------------------------------------------------------------------------------------------------------------------
 
     def PrintScreen(self, i):
-        path= os.path.dirname(os.path.abspath(__file__))
-        path+="\PICS"
-        if(os.path.isdir(path)==False):
-            os.makedirs(path)
-        im = ImageGrab.grab()
-        picname="pic"+str(i)+".png"
-        path=path+"\{0}".format(picname)
-        im.save(path)
-        print "Took Screenshot | Saved as : ",picname
+        try:
+            server_path= os.path.dirname(os.path.abspath(__file__))
+            picname="\pic"+str(i)+".png"
+            server_path+="\SERVER_PICS"
+            if(os.path.isdir(server_path)==False):
+                os.makedirs(server_path)
+            server_path+=picname
+            picture = ImageGrab.grab()
+            print "Took Screenshot number ",i
+            image = {'pixels': picture.tostring(), 'size': picture.size, 'mode': picture.mode}
+            compressed = zlib.compress(str(image))
+            data = pickle.dumps(compressed)
+            len_image = str(len(data))
+            self.client.send(len_image)
+            ack1 = self.client.recv(1024)
+            self.client.send(data)
+            ack2 = self.client.recv(1024)
 
-    #------------------------------------------------------------------------------------------------------------------
+            self.client.send(server_path)
+        except Exception as e:
+            print "ERROR"
+            raise e
 
-    def send_picture(self, i):
-        picname="pic"+str(i)+".png"
-        path="E:\Python Yud Bet\ProjectEP\PICS"
-        path=path+"\{0}".format(picname)
-        print path
-        server_path= os.path.dirname(os.path.abspath(__file__))
-        server_path+="\SERVER_PICS"
-        print server_path
-        self.client.send(server_path+"\{0}".format(picname))
-        time.sleep(2)
-        if(os.path.isdir(server_path)==False):
-            os.makedirs(server_path)
-        f = open(path,'rb')
-        print 'Sending...'
-        time.sleep(1)
-        part = f.read(1024)
-        while (part):
-            self.client.send(part)
-            time.sleep(0.1)
-            part = f.read(1024)
-        f.close()
-        mass=self.client.recv(1024)
-        if mass=="image_sent":
-            print picname,"sent"
     #-------------------------------------------------------------------------------------------------------------------
 
     def WindowTitles(self):
@@ -153,9 +154,9 @@ class Client(object):
     #-------------------------------------------------------------------------------------------------------------------
 
     def Check_Exceptions(self):
-        checkingtime = self.client.recv(BUFFER)
+        checkingtime = self.client.recv(BUF_SIZE)
         time.sleep(0.1)
-        Exceptions = self.client.recv(BUFFER)
+        Exceptions = self.client.recv(BUF_SIZE)
         Exceptions=Exceptions.split("#")
         currenttime=time.time()
         currenttime+=int(checkingtime)
@@ -216,8 +217,9 @@ class Client(object):
 
                 self.Check_Exceptions()
 
-                data = self.client.recv(BUFFER)
+                data = self.client.recv(BUF_SIZE)
                 print data
+
                 if "exe" in data:
                     ans=False
                     time.sleep(5)
@@ -237,21 +239,12 @@ class Client(object):
                                 if check["if front"]==False and printf==False:
                                     print procname, "was minimized or closed... please wait..."              #waiting that process will come to front - minimized or closed
                                     printf=True
-                                while(check["if open"]==True and check["if front"]==True):
+                                if(check["if open"]==True and check["if front"]==True):
                                     printf=False
                                     self.PrintScreen(t)
-                                    #t+=1
-                                    #time.sleep(2)
                                     check=self.CheckifProcess(proc[i]["Process name"])
                                 if(check["if open"]==False):
                                     print procname, "was closed"
-                                    time.sleep(2)
-                                    self.client.send("finish")
-                                    time.sleep(2)
-                                    #num=str(t-1)
-                                    #self.client.send(num)
-                                    #time.sleep(2)
-                                    self.send_picture(1)
                                     break
                         else :
                             i+=1
@@ -265,7 +258,7 @@ class Client(object):
                     # An existing connection was forcibly closed by the remote host
                     self.running = False    
                 try:
-                    command = self.gui.recv(BUFFER)
+                    command = self.gui.recv(BUF_SIZE)
                     self.client.send(command)
                 except:
                     pass
